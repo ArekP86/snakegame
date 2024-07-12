@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Snake Game</title>
+</head>
+
+<body>
+
+    <canvas id="snakeboard" width="800" height="800" ali></canvas>
+    <table class="center">
+        <tr>
+            <td class="pad">
+                <div id="score">score: 0</div>
+            </td>
+            <td class="pad">
+                <button class="restart button" onClick="window.location.reload();">Restart</button>
+            </td>
+        </tr>
+        <tr>
+            <td class="pad">
+                <div id="hiscore"></div>
+            </td>
+            <td class="pad">
+                <form action="https://games.apietraszek.eu/">
+                    <input class="back button" type="submit" value="Back to Games by AP" />
+                </form>
+            </td>
+        </tr>
+    </table>
+
+    <div style="display:none;">
+        <img id="heart1" src="res\serce1.png" width="50" height="50" />
+        <img id="heart2" src="res\serce2.png" width="50" height="50" />
+        <img id="heart3" src="res\serce3.png" width="50" height="50" />
+        <img id="heart4" src="res\serce4.png" width="50" height="50" />
+        <img id="cat_head" src="res\kot_glowa.png" width="50" height="50" />
+        <img id="cat_middle" src="res\kot.png" width="50" height="50" />
+        <img id="cat_tail" src="res\ogon_.png" width="50" height="50" />
+        <img id="carpet" src="res\carpet.png" width="800" height="800" />
+    </div>
+
+    <style>
+
+        body {
+            touch-action: none;
+        }
+
+        .lock-screen {
+            height: 100%;
+            overflow: hidden;
+            width: 100%;
+            position: fixed;
+        }
+
+        .flex {
+            display: flex;
+        }
+
+        .mr {
+            margin-right: 1em;
+        }
+
+        #snakeboard {
+            position: relative;
+            padding: 0;
+            margin: auto;
+            display: block;
+
+        }
+
+        #score {
+            text-align: left;
+            font-size: 200%;
+        }
+
+        #hiscore {
+            text-align: left;
+            font-size: 200%;
+        }
+
+        .button {
+            border: 0;
+            line-height: 2.5;
+            padding: 0 20px;
+            font-size: 1rem;
+            text-align: center;
+            color: #fff;
+            text-shadow: 1px 1px 1px #000;
+            border-radius: 10px;
+            background-image: linear-gradient(to top left,
+                    rgba(0, 0, 0, 0.2),
+                    rgba(0, 0, 0, 0.2) 30%,
+                    rgba(0, 0, 0, 0));
+            box-shadow:
+                inset 2px 2px 3px rgba(255, 255, 255, 0.6),
+                inset -2px -2px 3px rgba(0, 0, 0, 0.6);
+            display: block;
+            margin: 0 auto;
+        }
+
+        .restart {
+            background-color: rgba(220, 0, 0, 1);
+        }
+
+        .restart:hover {
+            background-color: rgba(255, 0, 0, 1);
+        }
+
+        .back {
+            background-color: rgb(0, 0, 220);
+        }
+
+        .back:hover {
+            background-color: rgba(0, 0, 255, 1);
+        }
+
+        .button:active {
+            box-shadow:
+                inset -2px -2px 3px rgba(255, 255, 255, 0.6),
+                inset 2px 2px 3px rgba(0, 0, 0, 0.6);
+        }
+
+        .center {
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .pad {
+            padding: 0 30px;
+        }
+    </style>
+</body>
+
+<script>
+
+    const canvas_size = 800;
+    const part_size = 40;
+    let delay = 500;
+
+    let heart_no = 1;
+
+    let snake = [
+        { x: canvas_size / 2, y: canvas_size / 2 },
+        { x: canvas_size / 2 - part_size, y: canvas_size / 2 }
+    ]
+
+    let score = 0;
+    let hiscore = 0;
+    const hiscore_key = 'cat_snake_game_hiscore_value';
+    hiscore = localStorage.getItem(hiscore_key);
+    if (hiscore == null) {
+        hiscore = 0;
+    }
+    document.getElementById('hiscore').innerHTML = "hiscore: " + hiscore;
+
+    const RIGHT_DIR = 1;
+    const DOWN_DIR = 2;
+    const LEFT_DIR = 3;
+    const UP_DIR = 4;
+    let changing_direction = false;
+    let current_direction = RIGHT_DIR;
+    let last_direction = RIGHT_DIR;
+    let food_x;
+    let food_y;
+    let dx = part_size;
+    let dy = 0;
+
+
+    const snakeboard = document.getElementById("snakeboard");
+    // var snakeboard_style = snakeboard.style;
+    // snakeboard_style.marginLeft = "auto";
+    // snakeboard_style.marginRight = "auto";
+    // var parentStyle = canvas.parentElement.style;
+    // parentStyle.textAlign = "center";
+    // parentStyle.width = "100%";
+    const snakeboard_ctx = snakeboard.getContext("2d");
+
+    const heart_1 = document.getElementById("heart1");
+    const heart_2 = document.getElementById("heart2");
+    const heart_3 = document.getElementById("heart3");
+    const heart_4 = document.getElementById("heart4");
+    const head = document.getElementById("cat_head");
+    const part = document.getElementById("cat_middle");
+    const tail = document.getElementById("cat_tail");
+    const carpet = document.getElementById("carpet");
+
+    Promise.all(Array.from(document.images).filter(img => !img.complete).map(img => new Promise(resolve => { img.onload = img.onerror = resolve; }))).then(() => {
+        main();
+    });
+
+
+    gen_food();
+
+    document.addEventListener("keydown", hadle_direction_keydown);
+    document.addEventListener("touchstart", hadle_direction_swipestart, false);
+    document.addEventListener("touchmove", handle_direction_swipe, false);
+
+    var x_start_swipe = null;
+    var y_start_swipe = null;
+
+    function main() {
+
+        if (has_game_ended()) {
+            hiscore = score;
+            if (hiscore > localStorage.getItem(hiscore_key)) {
+                localStorage.setItem(hiscore_key, hiscore);
+                document.getElementById('hiscore').innerHTML = "hiscore: " + hiscore;
+            }
+            return;
+        }
+
+        changing_direction = false;
+        last_direction = current_direction;
+        setTimeout(function onTick() {
+            clear_board();
+            drawFood();
+            move_snake();
+            drawSnake();
+            main();
+        }, delay - score)
+    }
+
+    function clear_board() {
+        snakeboard_ctx.drawImage(carpet, 0, 0, snakeboard.width, snakeboard.height);
+    }
+
+    function drawSnake() {
+        snakeboard_ctx.drawImage(head, snake[0].x, snake[0].y, part_size, part_size);
+        for (let i = 1; i < snake.length - 1; i++) {
+            drawSnakePart(snake[i])
+        }
+        snakeboard_ctx.fillStyle = 'Violet';
+        snakeboard_ctx.drawImage(tail, snake[snake.length - 1].x, snake[snake.length - 1].y, part_size, part_size);
+    }
+
+    function drawFood() {
+        switch (heart_no) {
+            case 1:
+                snakeboard_ctx.drawImage(heart_1, food_x, food_y, part_size, part_size);
+                break;
+            case 2:
+                snakeboard_ctx.drawImage(heart_2, food_x, food_y, part_size, part_size);
+                break;
+            case 3:
+                snakeboard_ctx.drawImage(heart_3, food_x, food_y, part_size, part_size);
+                break;
+            case 4:
+                snakeboard_ctx.drawImage(heart_4, food_x, food_y, part_size, part_size);
+                break;
+        }
+    }
+
+    function drawSnakePart(snakePart) {
+        snakeboard_ctx.drawImage(part, snakePart.x, snakePart.y, part_size, part_size);
+    }
+
+    function has_game_ended() {
+        for (let i = 4; i < snake.length; i++) {
+            if (snake[i].x === snake[0].x && snake[i].y === snake[0].y) return true
+        }
+        const hitLeftWall = snake[0].x < 0;
+        const hitRightWall = snake[0].x > snakeboard.width - 10;
+        const hitToptWall = snake[0].y < 0;
+        const hitBottomWall = snake[0].y > snakeboard.height - 10;
+        return hitLeftWall || hitRightWall || hitToptWall || hitBottomWall
+    }
+
+    function random_food(min, max) {
+        return Math.round((Math.random() * (max - min) + min) / part_size) * part_size;
+    }
+
+    function gen_food() {
+        heart_no++;
+        if (heart_no > 4) {
+            heart_no = 1;
+        }
+        // Generate a random number the food x-coordinate
+        food_x = random_food(0, snakeboard.width - part_size);
+        // Generate a random number for the food y-coordinate
+        food_y = random_food(0, snakeboard.height - part_size);
+        // if the new food location is where the snake currently is, generate a new food location
+        snake.forEach(function has_snake_eaten_food(part) {
+            const has_eaten = part.x == food_x && part.y == food_y;
+            if (has_eaten) gen_food();
+        });
+    }
+
+    function hadle_direction_keydown(event) {
+        const LEFT_KEY = 37;
+        const RIGHT_KEY = 39;
+        const UP_KEY = 38;
+        const DOWN_KEY = 40;
+
+        const keyPressed = event.keyCode;
+        if (last_direction != RIGHT_DIR && keyPressed === LEFT_KEY) {
+            dx = -part_size;
+            dy = 0;
+            current_direction = LEFT_DIR;
+        }
+        if (last_direction != DOWN_DIR && keyPressed === UP_KEY) {
+            dx = 0;
+            dy = -part_size;
+            current_direction = UP_DIR;
+        }
+        if (last_direction != LEFT_DIR && keyPressed === RIGHT_KEY) {
+            dx = part_size;
+            dy = 0;
+            current_direction = RIGHT_DIR;
+        }
+        if (last_direction != UP_DIR && keyPressed === DOWN_KEY) {
+            dx = 0;
+            dy = part_size;
+            current_direction = DOWN_DIR;
+        }
+    }
+
+    function get_swipe_start(evt) {
+        evt.preventDefault();
+        return evt.touches ||          // browser API
+            evt.originalEvent.touches; // jQuery
+    }
+
+    function hadle_direction_swipestart(evt) {
+        evt.preventDefault();
+        const swipe_start = get_swipe_start(evt)[0];
+        x_start_swipe = swipe_start.clientX;
+        y_start_swipe = swipe_start.clientY;
+    };
+
+    function handle_direction_swipe(evt) {
+        if (!x_start_swipe || !y_start_swipe) {
+            return;
+        }
+
+        var x_swipe_end = evt.touches[0].clientX;
+        var y_swipe_end = evt.touches[0].clientY;
+
+        var x_diff = x_start_swipe - x_swipe_end;
+        var y_diff = y_start_swipe - y_swipe_end;
+
+        if (Math.abs(x_diff) > Math.abs(y_diff)) {
+            if (last_direction != LEFT_DIR && x_diff > 0) {
+                /* right swipe */
+                dx = -part_size;
+                dy = 0;
+                current_direction = RIGHT_DIR;
+            } else if (last_direction != RIGHT_DIR) {
+                /* left swipe */
+                dx = part_size;
+                dy = 0;
+                current_direction = LEFT_DIR;
+            }
+        } else {
+            if (last_direction != UP_DIR && y_diff > 0) {
+                /* down swipe */
+                dx = 0;
+                dy = -part_size;
+                current_direction = DOWN_DIR;
+            } else if (last_direction != DOWN_DIR) {
+                /* up swipe */
+                dx = 0;
+                dy = part_size;
+                current_direction = UP_DIR;
+            }
+        }
+        /* reset values */
+        x_start_swipe = null;
+        y_start_swipe = null;
+    };
+
+    function move_snake() {
+        // Create the new Snake's head
+        const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+        // Add the new head to the beginning of snake body
+        snake.unshift(head);
+        const has_eaten_food = snake[0].x === food_x && snake[0].y === food_y;
+        if (has_eaten_food) {
+            // Increase score
+            score += 10;
+            // Display score on screen
+            document.getElementById('score').innerHTML = "score: " + score;
+            // Generate new food location
+            gen_food();
+        } else {
+            // Remove the last part of snake body
+            snake.pop();
+        }
+    }
+
+</script>
+
+</html>
